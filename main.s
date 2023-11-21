@@ -1,7 +1,21 @@
+.eqv BUF_SIZE 10
+
 .data
 buf1:    .space BUF_SIZE     # Буфер для первой строки
 buf2:    .space BUF_SIZE     # Буфер для второй строки
+buf3:    .space BUF_SIZE     # Буфер для третьей строки
+buf4:    .space BUF_SIZE     # Буфер для четвертой строки
+buf5:    .space BUF_SIZE     # Буфер для пятой строки
 mes:   .asciz "Введите ваше ключевое слово"
+
+.macro add_keyword %buf			# buf - куда сохранять. Макрос для ввода ключ.слова.
+    la      a0 mes
+    la      a1 %buf
+    li      a2 BUF_SIZE
+    li      a7 54
+    ecall
+.end_macro
+
 .macro slice %start %finish %result      # Срез строки. start - индекс начала, finish - индекс конца, result - срез.строка.
 
 .end_macro
@@ -23,17 +37,9 @@ end:
 .globl main
 main:
     # Ввод строки 1 в буфер
-    la      a0 mes
-    la      a1 buf1
-    li      a2 BUF_SIZE
-    li      a7 54
-    ecall
+    add_keyword buf1
     # Ввод строки 2 в буфер
-    la      a0 mes
-    la      a1 buf2
-    li      a3 BUF_SIZE
-    li      a7 54
-    ecall
+    add_keyword buf2
     # Сравнение строк в буферах
     la      a0 buf1
     la      a1 buf2
