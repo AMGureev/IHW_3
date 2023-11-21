@@ -1,14 +1,3 @@
-.macro add_keyword %buf			# buf - куда сохранять. Макрос для ввода ключ.слова.
-    la      a0 mes
-    la      a1 %buf
-    li      a2 BUF_SIZE
-    li      a7 54
-    ecall
-    mv a0 a1						# возвращает статус переданной строки. # тестик...
-    li a7 1
-    ecall
-.end_macro
-
 .macro error_message %str
 la a0 %str
 li a1 2
@@ -16,7 +5,38 @@ li a7 55
 ecall
 .end_macro
 
-.macro slice %start %finish %result      # Срез строки. start - индекс начала, finish - индекс конца, result - срез.строка.
+.macro strcpy %src %dest # %src - строка для копирования, %dest - строка, в котрую будет происходить копирование, произвести копирование строки
+	la a0 %src # Загрузка в а0 адреса строки для копирования
+	la a1 %dest # Загрузка в а1 адреса строки-копии
+	_strcpy:
+	mv t0 a0
+	mv t1 a1
+	loop:
+	lb t2 (t0)
+	sb t2 (t1)
+	beqz t2 end
+	addi t0 t0 1
+	addi t1 t1 1
+	j loop
+	end:
+.end_macro 
+
+
+
+.macro slice %src %dest %start %finish      # Срез строки. start - индекс начала, finish - индекс конца, result - срез.строка, word
+	mv a0 %start # копия старта.
+	la t0 %src
+	la t1 %dest
+	loop:
+	ble %finish a0 end
+	lb t2 (a0)
+	sb t2 (t1)
+	beqz t2 end # Если наткнулись на ноль-символ, то прекратить копирование
+	addi t0 t0 1 # Сдвигаемся по строке для копирования на 1 символ вперед
+	addi t1 t1 1 # Сдвигаемся по строке-копии на 1 символ вперед
+	j loop
+	end:
+	
 
 .end_macro
 
