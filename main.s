@@ -11,12 +11,20 @@ buf3:    .space BUF_SIZE     # Буфер для третьей строки
 buf4:    .space BUF_SIZE     # Буфер для четвертой строки
 buf5:    .space BUF_SIZE     # Буфер для пятой строки
 strbuf:  .space TEXT_SIZE   # Буфер для читаемого текста
+str_copy: .space BUF_SIZE # Буфер для строки - среза.
 mes:   .asciz "Введите ваше ключевое слово"
 mes_file:   .asciz "Введите адрес файла"
 er_name_mes:    .asciz "Incorrect file name\n"
 er_read_mes:    .asciz "Incorrect read operation\n"
+enter: 		.asciz "\n"
+space:		.asciz " "
 file_name:      .space	NAME_SIZE		# Имя читаемого файла
-
+output_str_buf1: 	.space NAME_SIZE
+output_str_buf2: 	.space NAME_SIZE
+output_str_buf3: 	.space NAME_SIZE
+output_str_buf4: 	.space NAME_SIZE
+output_str_buf5: 	.space NAME_SIZE
+result: 			.space TEXT_SIZE
 .text
 strcmp:
 loop:
@@ -32,6 +40,31 @@ end:
     sub     a0 t0 t1    # Получение разности между символами
     ret
 
+strlen:
+    li      t0 0        # Счетчик
+loop1:
+    lb      t1 (a6)   # Загрузка символа для сравнения
+    beqz    t1 end1
+    addi    t0 t0 1		# Счетчик символов увеличивается на 1
+    addi    a6 a6 1		# Берется следующий символ
+    b       loop1
+end1:
+    mv      a6 t0
+    ret
+
+_strcpy: # Копирование строки
+	mv t0 a0 # В t0 загружаем адрес строки, котрая будет скопирована
+	mv t1 a1 # В t1 загружаем адрес строки, в которую будет происходить копирование
+	loop2: # Цикл для копирования каждого символа
+	lb t2 (t0) # Загружаем в t2 символ для копировнаия
+	sb t2 (t1) # Копируем в строку-копию соответствующий символ из входной строки
+	beqz t2 end2 # Если наткнулись на ноль-символ, то прекратить копирование
+	addi t0 t0 1 # Сдвигаемся по строке на 1 символ вперед
+	addi t1 t1 1 # Сдвигаемся по строке-копии на 1 символ вперед
+	j loop2
+	end2:
+	ret
+
 .globl main
 main:
 
@@ -40,15 +73,9 @@ main:
     # Ввод строки 2 в буфер buf2
     str_get(buf2, BUF_SIZE, mes)
     # Сравнение строк в буферах
-    la      a0 buf1
-    la      a1 buf2
-    jal     strcmp
     # Вывод результата сравнения
-    li      a7 1
-    ecall
-    ###############################################################
-    print_str ("Input path to file for reading: ") # Вывод подсказки
     # Ввод имени файла с консоли эмулятора
+    back:
     str_get(file_name, NAME_SIZE, mes_file)
     open(file_name, READ_ONLY)
     li		s1 -1			# Проверка на корректное открытие
@@ -97,13 +124,28 @@ end_loop:
     mv	a0	s3	# Адрес начала буфера из кучи
     li 	a7 4
     ecall
+    find_count buf1
+    li      t5 1234          # Пример целого числа
+    la      t6 output_str_buf1    # Адрес строки для сохранения результата
+    int_to_str t6 t5        # Вызов макроса
+    la a0 output_str_buf1
+    li a7 4
+    ecall
+    str_get(file_name, NAME_SIZE, mes_file) # Ввод имени файла с консоли эмулятора
+    open(file_name, APPEND)
+    li		s1 -1			# Проверка на корректное открытие
+    beq		a0 s1 er_name	# Ошибка открытия файла
+mv   	s0 a0       	# Сохранение дескриптора файла
+	# Запись информации в открытый файл
+mv   a0, s0 			# Дескриптор файла
+    print_to_file
     exit
 er_name:
     error_message er_name_mes
     # И завершение программы
-    exit
+    j back
 er_read:
     # Сообщение об ошибочном чтении
     error_message er_read_mes
     # И завершение программы
-    exit
+    j back
