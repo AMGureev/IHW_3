@@ -5,39 +5,105 @@ li a7 55
 ecall
 .end_macro
 
-.macro strcpy %src %dest # %src - строка для копирования, %dest - строка, в котрую будет происходить копирование, произвести копирование строки
-	la a0 %src # Загрузка в а0 адреса строки для копирования
-	la a1 %dest # Загрузка в а1 адреса строки-копии
-	_strcpy:
-	mv t0 a0
-	mv t1 a1
-	loop:
-	lb t2 (t0)
-	sb t2 (t1)
-	beqz t2 end
-	addi t0 t0 1
-	addi t1 t1 1
-	j loop
+.macro print_to_file
+li   a7, 64       		# Системный вызов для записи в файл
+la a1 buf1 			# Адрес буфера записываемого текста
+li a2 2    			# Размер записываемой порции из регистра
+ecall             		# Запись в файл
+mv   a0, s0
+li   a7, 64
+la     a1 space
+li  a2 1
+ecall
+mv   a0, s0
+li   a7, 64
+la     a1 output_str_buf1
+li  a2 4
+ecall
+mv   a0, s0
+li   a7, 64
+la     a1 enter
+li  a2 2
+ecall
+mv   a0, s0
+li   a7, 64
+la a1 buf2
+li a2 2
+ecall
+mv   a0, s0
+li   a7, 64
+la     a1 space
+li  a2 1
+ecall
+.end_macro
+
+.macro int_to_str %dest %source
+    mv      a0 %source           # Поместить целое число в регистр a0
+    li      a1 10                # Десятичная система счисления
+    mv      a2 %dest             # Регистр для сохранения строки
+    int_to_str_loop:
+        remu    a3, a0, a1          # A3 = A0 % A1 (остаток от деления)
+        addi    a3, a3, '0'          # Преобразовать остаток в ASCII
+        push (a3)
+        addi    a2 a2 1            # Перейти к следующему символу в строке
+        divu    a0 a0 a1          # A0 = A0 / A1 (целая часть от деления)
+        bnez    a0 int_to_str_loop  # Повторить цикл, если A0 не равно нулю
+        mv a4 a2
+        mv a5 %dest
+	reverse_int:
+	pop(a3)
+	sb      a3 0(a5)            # Сохранить ASCII-символ в строку
+	addi    a5 a5 1            # Перейти к следующему символу в строке
+    	ble    a5 a4 reverse_int
+    	sb      zero 0(a5)          # Завершить строку нулевым символом
+.end_macro
+
+.macro find_count %word
+	li t6 0 # счетчик ответов
+	mv a6 s3
+	jal strlen
+	mv a1 a6
+	la a6 %word
+	jal strlen
+	neg a6 a6
+	add a5 a6 a1
+	neg a6 a6
+	mv a4 zero
+	while:
+	bgt a4 a5 end
+	add a3 a6 a4
+	slice s3 str_copy a4 a3 
+	la      a0 %word
+    	la      a1 str_copy
+   	jal     strcmp
+   	# Вывод результата сравнения
+   	bnez a0 not_equal
+	addi t6 t6 1
+ 	not_equal:
+ 	addi a4 a4 1
+	j while 
 	end:
+	mv a0 t6				# ответ
+	li a7 1
+	ecall
 .end_macro 
 
-
-
-.macro slice %src %dest %start %finish      # Срез строки. start - индекс начала, finish - индекс конца, result - срез.строка, word
+.macro slice %src %dest %start %finish      # Срез строки. start - индекс начала, finish - индекс конца
 	mv a0 %start # копия старта.
-	la t0 %src
+	mv t0 %src
 	la t1 %dest
+	add t0 t0 a0
 	loop:
 	ble %finish a0 end
-	lb t2 (a0)
+	lb t2 (t0)
 	sb t2 (t1)
 	beqz t2 end # Если наткнулись на ноль-символ, то прекратить копирование
 	addi t0 t0 1 # Сдвигаемся по строке для копирования на 1 символ вперед
 	addi t1 t1 1 # Сдвигаемся по строке-копии на 1 символ вперед
+	addi a0 a0 1
 	j loop
 	end:
-	
-
+	sb zero (t1) 
 .end_macro
 
 #===============================================================================
