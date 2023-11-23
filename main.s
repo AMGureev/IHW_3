@@ -1,6 +1,6 @@
 .include "macro-syscalls.m"
 
-.eqv    BUF_SIZE 10
+.eqv    BUF_SIZE 12
 .eqv    NAME_SIZE 256	# Размер буфера для имени файла
 .eqv    TEXT_SIZE 512	# Размер буфера для текста
 
@@ -10,12 +10,19 @@ buf2:    .space BUF_SIZE     # Буфер для второй строки
 buf3:    .space BUF_SIZE     # Буфер для третьей строки
 buf4:    .space BUF_SIZE     # Буфер для четвертой строки
 buf5:    .space BUF_SIZE     # Буфер для пятой строки
+buf6:    .space BUF_SIZE	    # Буфер для ввода пользователем Y/N.
 strbuf:  .space TEXT_SIZE   # Буфер для читаемого текста
 str_copy: .space BUF_SIZE # Буфер для строки - среза.
 mes:   .asciz "Введите ваше ключевое слово"
+mes_again: .asciz "Если хотите продолжить работу, введите Y\nДля завершения работы введите любой символ"
 mes_file:   .asciz "Введите адрес файла"
-er_name_mes:    .asciz "Incorrect file name\n"
-er_read_mes:    .asciz "Incorrect read operation\n"
+info_result: .asciz "Результат работы программы"
+mes_file_result:   .asciz "Введите адрес файла"
+mes_console: 	.asciz "Для показа результата в окне, введите Y\nЕсли результат не нужен, введите N"
+er_name_mes:    .asciz "Ошибка в названии файла! Введите адрес файла заного!"
+er_read_mes:    .asciz "Ошибка в прочтении файла! Введите адрес файла заного!"
+good_bye: .asciz "Спасибо, до свидания!"
+error_input: .asciz "Некорректный ввод! Повторите попытку!"
 enter: 		.asciz "\n"
 space:		.asciz " "
 file_name:      .space	NAME_SIZE		# Имя читаемого файла
@@ -67,11 +74,13 @@ _strcpy: # Копирование строки
 
 .globl main
 main:
-
     # Ввод строки 1 в буфер buf1
     str_get(buf1, BUF_SIZE, mes)
     # Ввод строки 2 в буфер buf2
     str_get(buf2, BUF_SIZE, mes)
+    str_get(buf3, BUF_SIZE, mes)
+    str_get(buf4, BUF_SIZE, mes)
+    str_get(buf5, BUF_SIZE, mes)
     # Сравнение строк в буферах
     # Вывод результата сравнения
     # Ввод имени файла с консоли эмулятора
@@ -121,31 +130,38 @@ end_loop:
     ###############################################################
     # Вывод текста на консоль
     ###la 	a0 strbuf
-    mv	a0	s3	# Адрес начала буфера из кучи
-    li 	a7 4
-    ecall
-    find_count buf1
-    li      t5 1234          # Пример целого числа
-    la      t6 output_str_buf1    # Адрес строки для сохранения результата
-    int_to_str t6 t5        # Вызов макроса
-    la a0 output_str_buf1
-    li a7 4
-    ecall
+    count_word buf1 output_str_buf1
+    count_word buf2 output_str_buf2
+    count_word buf3 output_str_buf3
+    count_word buf4 output_str_buf4
+    count_word buf5 output_str_buf5
+    back1:
     str_get(file_name, NAME_SIZE, mes_file) # Ввод имени файла с консоли эмулятора
-    open(file_name, APPEND)
+    open(file_name, READ_ONLY)
     li		s1 -1			# Проверка на корректное открытие
-    beq		a0 s1 er_name	# Ошибка открытия файла
-mv   	s0 a0       	# Сохранение дескриптора файла
+    beq		a0 s1 er_name1	# Ошибка открытия файла
+    mv   	s0 a0       	# Сохранение дескриптора файла
+    close(s0)
+    open(file_name, APPEND)
+    mv   	s0 a0       	# Сохранение дескриптора файла
 	# Запись информации в открытый файл
+	print_to_file
 mv   a0, s0 			# Дескриптор файла
-    print_to_file
+    close(s0)
+    maybe_concole
+    maybe_end:
+    again
     exit
 er_name:
     error_message er_name_mes
-    # И завершение программы
     j back
 er_read:
     # Сообщение об ошибочном чтении
     error_message er_read_mes
-    # И завершение программы
     j back
+er_name1:
+    error_message er_name_mes
+    j back1
+er_read1:
+    error_message er_read_mes
+    j back1
