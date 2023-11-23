@@ -5,11 +5,31 @@ li a7 55
 ecall
 .end_macro
 
-.macro print_to_file
-li   a7, 64       		# Системный вызов для записи в файл
-la a1 buf1 			# Адрес буфера записываемого текста
-li a2 2    			# Размер записываемой порции из регистра
-ecall             		# Запись в файл
+.macro count_word %bufer %result_bufer
+    find_count %bufer t6
+    int_to_str %result_bufer t6       # Вызов макроса
+.end_macro
+
+.macro again
+	str_get(buf6, BUF_SIZE, mes_again)
+	li a1 'Y'
+	la a2 buf6
+	lb a3 (a2)
+	beq a1 a3 main
+	la a0 good_bye
+    	li a1 1
+    	li a7 55
+    	ecall
+.end_macro
+
+.macro print_el %bufer %result_bufer
+mv   a0, s0
+li a7 64
+la a1 %bufer 			# Адрес буфера записываемого текста
+la a6 %bufer
+jal strlen
+mv a2 a6
+ecall
 mv   a0, s0
 li   a7, 64
 la     a1 space
@@ -17,30 +37,30 @@ li  a2 1
 ecall
 mv   a0, s0
 li   a7, 64
-la     a1 output_str_buf1
-li  a2 4
+la     a1 %result_bufer
+la a6 %result_bufer
+jal strlen
+mv a2 a6
 ecall
 mv   a0, s0
 li   a7, 64
 la     a1 enter
-li  a2 2
-ecall
-mv   a0, s0
-li   a7, 64
-la a1 buf2
-li a2 2
-ecall
-mv   a0, s0
-li   a7, 64
-la     a1 space
 li  a2 1
 ecall
+.end_macro
+
+.macro print_to_file
+print_el buf1 output_str_buf1
+print_el buf2 output_str_buf2
+print_el buf3 output_str_buf3
+print_el buf4 output_str_buf4
+print_el buf5 output_str_buf5
 .end_macro
 
 .macro int_to_str %dest %source
     mv      a0 %source           # Поместить целое число в регистр a0
     li      a1 10                # Десятичная система счисления
-    mv      a2 %dest             # Регистр для сохранения строки
+    la      a2 %dest             # Регистр для сохранения строки
     int_to_str_loop:
         remu    a3, a0, a1          # A3 = A0 % A1 (остаток от деления)
         addi    a3, a3, '0'          # Преобразовать остаток в ASCII
@@ -49,7 +69,7 @@ ecall
         divu    a0 a0 a1          # A0 = A0 / A1 (целая часть от деления)
         bnez    a0 int_to_str_loop  # Повторить цикл, если A0 не равно нулю
         mv a4 a2
-        mv a5 %dest
+        la a5 %dest
 	reverse_int:
 	pop(a3)
 	sb      a3 0(a5)            # Сохранить ASCII-символ в строку
@@ -58,7 +78,7 @@ ecall
     	sb      zero 0(a5)          # Завершить строку нулевым символом
 .end_macro
 
-.macro find_count %word
+.macro find_count %word %result
 	li t6 0 # счетчик ответов
 	mv a6 s3
 	jal strlen
@@ -83,9 +103,7 @@ ecall
  	addi a4 a4 1
 	j while 
 	end:
-	mv a0 t6				# ответ
-	li a7 1
-	ecall
+	mv %result t6
 .end_macro 
 
 .macro slice %src %dest %start %finish      # Срез строки. start - индекс начала, finish - индекс конца
@@ -265,4 +283,68 @@ replace:
 .macro pop(%x)
 	lw	%x, (sp)
 	addi	sp, sp, 4
+.end_macro
+
+.macro maybe_concole
+open(file_name, READ_ONLY)
+    li		s1 -1			# Проверка на корректное открытие
+    beq		a0 s1 er_name1	# Ошибка открытия файла
+    mv   	s0 a0       	# Сохранение дескриптора файла
+    ###############################################################
+    # Выделение начального блока памяти для для буфера в куче
+    allocate(TEXT_SIZE)		# Результат хранится в a0
+    mv 		s3, a0			# Сохранение адреса кучи в регистре
+    mv 		s5, a0			# Сохранение изменяемого адреса кучи в регистре
+    li		s4, TEXT_SIZE	# Сохранение константы для обработки
+    mv		s6, zero		# Установка начальной длины прочитанного текста
+    ###############################################################
+read_loop1:
+    # Чтение информации из открытого файла
+    ###read(s0, strbuf, TEXT_SIZE)
+    read_addr_reg(s0, s5, TEXT_SIZE) # чтение для адреса блока из регистра
+    # Проверка на корректное чтение
+    beq		a0 s1 er_read1	# Ошибка чтения
+    mv   	s2 a0       	# Сохранение длины текста
+    add 	s6, s6, s2		# Размер текста увеличивается на прочитанную порцию
+    # При длине прочитанного текста меньшей, чем размер буфера,
+    # необходимо завершить процесс.
+    bne		s2 s4 end_loop1
+    # Иначе расширить буфер и повторить
+    allocate(TEXT_SIZE)		# Результат здесь не нужен, но если нужно то...
+    add		s5 s5 s2		# Адрес для чтения смещается на размер порции
+    b read_loop1				# Обработка следующей порции текста из файла
+end_loop1:
+    ###############################################################
+    # Закрытие файла
+    close(s0)
+    #li   a7, 57       # Системный вызов закрытия файла
+    #mv   a0, s0       # Дескриптор файла
+    #ecall             # Закрытие файла
+    ###############################################################
+    # Установка нуля в конце прочитанной строки
+    ###la	t0 strbuf	 # Адрес начала буфера
+    mv	t0 s3		# Адрес буфера в куче
+    add t0 t0 s6	# Адрес последнего прочитанного символа
+    addi t0 t0 1	# Место для нуля
+    sb	zero (t0)	# Запись нуля в конец текста
+    repeat:
+    str_get(buf6, BUF_SIZE, mes_console)
+    li a1 'Y'
+    la a2 buf6
+    lb a3 (a2)
+    beq a1 a3 look
+    li a1 'N'
+    la a2 buf6
+    lb a3 (a2)
+    beq a1 a3 maybe_end
+    la a0 error_input
+    li a1 2
+    li a7 55
+    ecall
+    j repeat
+    look:
+    addi a0 s3 3
+    li a1 1
+    li a7 55
+    ecall
 .end_macro
