@@ -10,8 +10,25 @@ ecall
     int_to_str %result_bufer t6       # Вызов макроса
 .end_macro
 
+.macro check_null %bufer %result
+.text
+	la a6 %bufer
+	jal strlen
+	beqz a6 bad
+	j okey
+	bad:
+	error_message error_m
+	okey:
+	mv %result a6
+.end_macro
+
 .macro again
+	j start
+	srtg:
+	error_message error_m
+	start:
 	str_get(buf6, BUF_SIZE, mes_again)
+	bnez a0 srtg
 	li a1 'Y'
 	la a2 buf6
 	lb a3 (a2)
@@ -198,6 +215,7 @@ str:
     li      a2 %size
     li      a7 54
     ecall
+    bnez a1 badik
     push(s0)
     push(s1)
     push(s2)
@@ -213,6 +231,12 @@ replace:
     pop(s2)
     pop(s1)
     pop(s0)
+    li a0 0
+    j sc
+    badik:
+    li a0 -1
+    sc:
+    
 .end_macro
 
 #-------------------------------------------------------------------------------
@@ -327,8 +351,12 @@ end_loop1:
     add t0 t0 s6	# Адрес последнего прочитанного символа
     addi t0 t0 1	# Место для нуля
     sb	zero (t0)	# Запись нуля в конец текста
+    j repeat
+    start:
+    error_message error_m
     repeat:
     str_get(buf6, BUF_SIZE, mes_console)
+    bnez a0 start
     li a1 'Y'
     la a2 buf6
     lb a3 (a2)
@@ -343,7 +371,7 @@ end_loop1:
     ecall
     j repeat
     look:
-    addi a0 s3 3
+    addi a0 s3 0
     li a1 1
     li a7 55
     ecall
