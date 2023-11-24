@@ -371,7 +371,7 @@ end_loop1:
     ecall
     j repeat
     look:
-    addi a0 s3 0
+    addi a0 s3 3
     li a1 1
     li a7 55
     ecall
