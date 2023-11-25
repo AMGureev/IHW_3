@@ -309,7 +309,7 @@ replace:
 	addi	sp, sp, 4
 .end_macro
 
-.macro maybe_concole
+.macro read_file
 open(file_name, READ_ONLY)
     li		s1 -1			# Проверка на корректное открытие
     beq		a0 s1 er_name1	# Ошибка открытия файла
@@ -351,7 +351,17 @@ end_loop1:
     add t0 t0 s6	# Адрес последнего прочитанного символа
     addi t0 t0 1	# Место для нуля
     sb	zero (t0)	# Запись нуля в конец текста
-    j repeat
+    j end
+    er_name1:
+    error_message er_name_mes
+er_read1:
+    # Сообщение об ошибочном чтении
+    error_message er_read_mes
+    end:
+.end_macro
+
+.macro console
+	j repeat
     start:
     error_message error_m
     repeat:
@@ -375,4 +385,126 @@ end_loop1:
     li a1 1
     li a7 55
     ecall
+.end_macro
+
+.macro read_first_file 
+j back
+    n_back:
+    error_message error_m
+    back:
+    str_get(file_name, NAME_SIZE, mes_file_1)
+    bnez a0 n_back
+    open(file_name, READ_ONLY)
+    li		s1 -1			# Проверка на корректное открытие
+    beq		a0 s1 er_name	# Ошибка открытия файла
+    mv   	s0 a0       	# Сохранение дескриптора файла
+    ###############################################################
+    # Выделение начального блока памяти для для буфера в куче
+    allocate(TEXT_SIZE)		# Результат хранится в a0
+    mv 		s3, a0			# Сохранение адреса кучи в регистре
+    mv 		s5, a0			# Сохранение изменяемого адреса кучи в регистре
+    li		s4, TEXT_SIZE	# Сохранение константы для обработки
+    mv		s6, zero		# Установка начальной длины прочитанного текста
+    ###############################################################
+read_loop:
+    # Чтение информации из открытого файла
+    ###read(s0, strbuf, TEXT_SIZE)
+    read_addr_reg(s0, s5, TEXT_SIZE) # чтение для адреса блока из регистра
+    # Проверка на корректное чтение
+    beq		a0 s1 er_read	# Ошибка чтения
+    mv   	s2 a0       	# Сохранение длины текста
+    add 	s6, s6, s2		# Размер текста увеличивается на прочитанную порцию
+    # При длине прочитанного текста меньшей, чем размер буфера,
+    # необходимо завершить процесс.
+    bne		s2 s4 end_loop
+    # Иначе расширить буфер и повторить
+    allocate(TEXT_SIZE)		# Результат здесь не нужен, но если нужно то...
+    add		s5 s5 s2		# Адрес для чтения смещается на размер порции
+    b read_loop				# Обработка следующей порции текста из файла
+end_loop:
+    ###############################################################
+    # Закрытие файла
+    close(s0)
+    #li   a7, 57       # Системный вызов закрытия файла
+    #mv   a0, s0       # Дескриптор файла
+    #ecall             # Закрытие файла
+    ###############################################################
+    # Установка нуля в конце прочитанной строки
+    ###la	t0 strbuf	 # Адрес начала буфера
+    mv	t0 s3		# Адрес буфера в куче
+    add t0 t0 s6	# Адрес последнего прочитанного символа
+    addi t0 t0 1	# Место для нуля
+    sb	zero (t0)	# Запись нуля в конец текста
+    ###############################################################
+    j end
+    er_name:
+    error_message er_name_mes
+    j back
+er_read:
+    # Сообщение об ошибочном чтении
+    error_message er_read_mes
+    j back
+    end:
+.end_macro
+
+.macro get_5_keys
+j po1
+    pop1:
+    error_message error_m
+    po1:
+    str_get(buf1, BUF_SIZE, mes)
+    bnez a0 pop1
+    j po2
+    pop2:
+    error_message error_m
+    po2:
+    str_get(buf2, BUF_SIZE, mes)
+    bnez a0 pop2
+    j po3
+    pop3:
+    error_message error_m
+    po3:
+    str_get(buf3, BUF_SIZE, mes)
+    bnez a0 pop3
+    j po4
+    pop4:
+    error_message error_m
+    po4:
+    str_get(buf4, BUF_SIZE, mes)
+    bnez a0 pop4
+    j po5
+    pop5:
+    error_message error_m
+    po5:
+    str_get(buf5, BUF_SIZE, mes)
+    bnez a0 pop5
+.end_macro
+
+.macro work_with_second_file
+    j back1
+    n_back1:
+    error_message error_m
+    back1:
+    str_get(file_name, NAME_SIZE, mes_file_2) # Ввод имени файла с консоли эмулятора
+    bnez a0 n_back1
+    open(file_name, READ_ONLY)
+    li		s1 -1			# Проверка на корректное открытие
+    beq		a0 s1 er_name1	# Ошибка открытия файла
+    mv   	s0 a0       	# Сохранение дескриптора файла
+    close(s0)
+    open(file_name, APPEND)
+    mv   	s0 a0       	# Сохранение дескриптора файла
+	# Запись информации в открытый файл
+	print_to_file
+mv   a0, s0 			# Дескриптор файла
+    close(s0)
+    j end
+    er_name1:
+    error_message er_name_mes
+    j back1
+er_read1:
+    # Сообщение об ошибочном чтении
+    error_message er_read_mes
+    j back1
+    end:
 .end_macro
