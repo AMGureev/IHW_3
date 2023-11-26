@@ -1,28 +1,28 @@
 .include "macro-syscalls.m"
 
-.eqv    BUF_SIZE 12
-.eqv    NAME_SIZE 256	# Размер буфера для имени файла
-.eqv    TEXT_SIZE 512	# Размер буфера для текста
+.eqv    BUF_SIZE 12						# Размер буфера для мелких переменных.
+.eqv    NAME_SIZE 256					# Размер буфера для имени файла.
+.eqv    TEXT_SIZE 512					# Размер буфера для текста.
 
 .data
-buf1:    .space BUF_SIZE     # Буфер для первой строки
+buf1:    .space BUF_SIZE     				# Буфер для первой строки.
 .align 2
-buf2:    .space BUF_SIZE     # Буфер для второй строки
+buf2:    .space BUF_SIZE    				# Буфер для второй строки.
 .align 2
-buf3:    .space BUF_SIZE     # Буфер для третьей строки
+buf3:    .space BUF_SIZE     				# Буфер для третьей строки.
 .align 2
-buf4:    .space BUF_SIZE     # Буфер для четвертой строки
+buf4:    .space BUF_SIZE    				# Буфер для четвертой строки.
 .align 2
-buf5:    .space BUF_SIZE     # Буфер для пятой строки
+buf5:    .space BUF_SIZE     				# Буфер для пятой строки.
 .align 2
-buf6:    .space BUF_SIZE	    # Буфер для ввода пользователем Y/N.
+buf6:    .space BUF_SIZE	    				# Буфер для ввода пользователем Y/N.
 .align 2
-strbuf:  .space TEXT_SIZE   # Буфер для читаемого текста
+strbuf:  .space TEXT_SIZE  	 			# Буфер для читаемого текста.
 .align 2
-str_copy: .space BUF_SIZE # Буфер для строки - среза.
+str_copy: .space BUF_SIZE 				# Буфер для строки - среза.
 .align 2
 mes:   .asciz "Введите ваше ключевое слово"
-mes_again: .asciz "Если хотите продолжить работу, введите Y\nДля завершения работы введите любой символ"
+mes_choise: .asciz "Если хотите продолжить работу, введите Y\nДля завершения работы введите любой символ"
 mes_file_1:   .asciz "Введите адрес файла, который надо проанализировать"
 mes_file_2:   .asciz "Введите адрес файла, в который необходимо записать результат"
 info_result: .asciz "Результат работы программы"
@@ -35,17 +35,17 @@ good_bye: .asciz "Спасибо, до свидания!"
 error_input: .asciz "Некорректный ввод! Повторите попытку!"
 enter: 		.asciz "\n"
 space:		.asciz " "
-file_name:      .space	NAME_SIZE		# Имя читаемого файла
+file_name:      .space	NAME_SIZE		# Имя читаемого файла.
 .align 2
-output_str_buf1: 	.space NAME_SIZE
+output_str_buf1: 	.space NAME_SIZE		# Строковое представление кол-ва ключ.слов в файле.
 .align 2
-output_str_buf2: 	.space NAME_SIZE
+output_str_buf2: 	.space NAME_SIZE		# Строковое представление кол-ва ключ.слов в файле.
 .align 2
-output_str_buf3: 	.space NAME_SIZE
+output_str_buf3: 	.space NAME_SIZE		# Строковое представление кол-ва ключ.слов в файле.
 .align 2
-output_str_buf4: 	.space NAME_SIZE
+output_str_buf4: 	.space NAME_SIZE		# Строковое представление кол-ва ключ.слов в файле.
 .align 2
-output_str_buf5: 	.space NAME_SIZE
+output_str_buf5: 	.space NAME_SIZE		# Строковое представление кол-ва ключ.слов в файле.
 .align 2
 result: 			.space TEXT_SIZE
 .align 2
@@ -53,20 +53,15 @@ result: 			.space TEXT_SIZE
 
 .globl main
 main:
-    # Ввод строки 1 в буфер buf1
-    get_5_keys
-    # Сравнение строк в буферах
-    # Вывод результата сравнения
-    # Ввод имени файла с консоли эмулятора
-    read_first_file
-    count_word buf1 output_str_buf1
-    count_word buf2 output_str_buf2
-    count_word buf3 output_str_buf3
-    count_word buf4 output_str_buf4
-    count_word buf5 output_str_buf5
-    work_with_second_file
-    read_file
-    console
-    maybe_end:
-    again
-    exit
+    get_5_keys							# Вызов макроса для ввода пользователем 5 ключевых слов, которые он хочет найти в файле.
+    read_first_file						# Вызов макроса для работы с первым файлом - который надо проанализировать и в котором надо найти кол-во ключ.слов.
+    count_word buf1 output_str_buf1			# Вызов макроса для нахождения кол-ва первых ключевых слов в файле.
+    count_word buf2 output_str_buf2			# Вызов макроса для нахождения кол-ва вторых ключевых слов в файле.
+    count_word buf3 output_str_buf3			# Вызов макроса для нахождения кол-ва третьих ключевых слов в файле.
+    count_word buf4 output_str_buf4			# Вызов макроса для нахождения кол-ва четвертых ключевых слов в файле.
+    count_word buf5 output_str_buf5			# Вызов макроса для нахождения кол-ва пятых ключевых слов в файле.
+    read_second_file						# Вызов макроса, в  котором будет происходить работа с вторым файлом -  записываться результаты вычислений, копирование в регистр информации для возможного отображения пользователем результатов в java окне.				
+    console								# Вызов макроса для возможного вывода результатов на экран.
+    maybe_end:							# Метка - остановка для выбора действий пользователем.
+    choise								# Вызов макроса для выбора действий пользователем - продолжить выполнение или завершить программу.
+    exit								# Макрос для завершения программы.
